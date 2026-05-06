@@ -16,7 +16,10 @@ impl Rule for Ec2SshRule {
         "Checks if EC2 Security Groups allow SSH (Port 22) from anywhere (0.0.0.0/0)"
     }
 
-    async fn evaluate(&self, client: &Ec2Client) -> Result<ScanResult, Box<dyn std::error::Error + Send + Sync>> {
+    async fn evaluate(
+        &self,
+        client: &Ec2Client,
+    ) -> Result<ScanResult, Box<dyn std::error::Error + Send + Sync>> {
         let response = client.describe_security_groups().send().await?;
 
         let mut violations: Vec<String> = Vec::new();

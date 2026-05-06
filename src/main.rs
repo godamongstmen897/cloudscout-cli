@@ -1,12 +1,10 @@
 mod aws;
 mod core;
 
-use std::error::Error;
-use std::env;
-use aws_config;
-use aws_sdk_ec2;
 use crate::aws::Ec2SshRule;
 use crate::core::Rule;
+use std::env;
+use std::error::Error;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
