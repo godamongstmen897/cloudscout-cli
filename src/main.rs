@@ -1,3 +1,4 @@
+mod aws;
 mod core;
 
 fn main() {
