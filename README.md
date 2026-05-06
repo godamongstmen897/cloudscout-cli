@@ -1,3 +1,4 @@
+
 # 🛡️ CloudScout CLI
 
 ![Rust](https://img.shields.io/badge/rust-v1.75%2B-orange?style=flat-square&logo=rust)
@@ -8,6 +9,7 @@
 **CloudScout** is a lightning-fast, highly extensible Cloud Security Posture Management (CSPM-lite) CLI tool built in Rust. It is designed to automatically audit cloud infrastructure (AWS) and local host environments (Linux/Docker) for critical security misconfigurations.
 
 By shifting security left, CloudScout empowers developers, sysadmins, and DevOps engineers to catch vulnerabilities—such as exposed SSH ports, overly permissive IAM roles, and insecure Docker daemon configurations—before they reach production.
+<img width="678" height="304" alt="image" src="https://github.com/user-attachments/assets/7a15c51c-46ca-49c0-ae59-ea1405de3a0f" />
 
 ---
 
