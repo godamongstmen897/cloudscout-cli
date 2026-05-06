@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+#![allow(deprecated)]
 use crate::core::{Rule, ScanResult, Severity};
 
 pub struct Ec2SshRule;
