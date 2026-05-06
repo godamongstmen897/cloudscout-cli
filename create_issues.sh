@@ -526,3 +526,59 @@ Verify release binaries and checksums before publishing them to users.
 ## Complexity
 - Level: Medium (150 pts)" \
   --label "infrastructure"
+
+gh issue create \
+  --title "fix(core): Replace the placeholder CLI entrypoint with real command dispatch" \
+  --body "## Context
+The binary currently prints a startup message and exits, while the README advertises init and scan commands.
+
+## Requirements
+- Wire up argument parsing and subcommand dispatch
+- Execute the configured scan path instead of a placeholder print
+- Return consistent non-zero exit codes on failures
+
+## Complexity
+- Level: High (200 pts)" \
+  --label "core"
+
+gh issue create \
+  --title "test(core): Add integration coverage for the AWS EC2 SSH rule" \
+  --body "## Context
+The EC2 SSH rule has no tests, so regressions in detection logic or error handling would be easy to miss.
+
+## Requirements
+- Cover open and closed port-22 cases with mocked AWS responses
+- Verify the rule handles missing credentials or SDK failures cleanly
+- Assert the emitted finding includes the expected severity and metadata
+
+## Complexity
+- Level: Medium (150 pts)" \
+  --label "core"
+
+gh issue create \
+  --title "docs(documentation): Align the README with the currently implemented CLI behavior" \
+  --body "## Context
+The README describes features such as init, scan, SQLite storage, and a docs site that are not present in the code yet.
+
+## Requirements
+- Mark roadmap items clearly instead of presenting them as shipped
+- Document the actual current command behavior and limitations
+- Keep the README in sync with the binary entrypoint until the missing features land
+
+## Complexity
+- Level: Trivial (100 pts)" \
+  --label "documentation"
+
+gh issue create \
+  --title "feat(aws-rule): Report affected resources, not only the security group finding" \
+  --body "## Context
+The EC2 SSH check stops at the first exposed security group and does not identify which instances are affected.
+
+## Requirements
+- Include security group identifiers in the finding payload
+- Map findings back to affected EC2 instances where possible
+- Clarify the scan scope when only network rules are inspected
+
+## Complexity
+- Level: Medium (150 pts)" \
+  --label "aws-rule"
