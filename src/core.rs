@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 use std::error::Error;
+use async_trait::async_trait;
+use aws_sdk_ec2::Client as Ec2Client;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Severity {
@@ -19,10 +21,11 @@ pub struct ScanResult {
     pub passed: bool,
 }
 
+#[async_trait]
 pub trait Rule {
     fn id(&self) -> &'static str;
 
     fn description(&self) -> &'static str;
 
-    async fn evaluate(&self) -> Result<ScanResult, Box<dyn Error>>;
+    async fn evaluate(&self, client: &Ec2Client) -> Result<ScanResult, Box<dyn Error + Send + Sync>>;
 }
