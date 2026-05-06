@@ -1,32 +1,30 @@
-name: CI
+name: CloudScout CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
+    branches: ["*"]
 
 jobs:
-  test:
-    name: Test
+  build-and-test:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Rust dependencies and build artifacts
-        uses: Swatinem/rust-cache@v2
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          cache-on-failure: true
+          components: rustfmt, clippy
 
-      - name: Check code formatting
-        run: cargo fmt --check
+      - name: Check Formatting
+        run: cargo fmt -- --check
 
-      - name: Run Clippy linter
-        run: cargo clippy --all-targets --all-features -- -D warnings
+      - name: Run Clippy
+        run: cargo clippy -- -D warnings
 
-      - name: Run tests
+      - name: Build
+        run: cargo build --verbose
+
+      - name: Run Tests
         run: cargo test --verbose
