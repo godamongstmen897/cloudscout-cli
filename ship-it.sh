@@ -20,10 +20,9 @@ NC='\033[0m' # No Color
 
 # Script variables
 SCRIPT_NAME="$(basename "$0")"
-ISSUE_TITLE="[Automated QA] Pipeline Failure: Code Quality Issues"
-ISSUE_LABEL="bug"
-FAILED_CHECKS=""
-FAILURE_DETAILS=""
+FAILED_CHECK_NAME=""
+FAILED_CHECK_DETAILS=""
+FAILED_CHECKS_ARRAY=()
 
 ##############################################################################
 # Utility Functions
@@ -109,8 +108,9 @@ run_formatting_check() {
         return 0
     else
         print_error "Formatting check failed"
-        FAILED_CHECKS="${FAILED_CHECKS}• Formatting Check (cargo fmt)\n"
-        FAILURE_DETAILS="${FAILURE_DETAILS}\n### Formatting Check Failed\n\`\`\`\n${output}\n\`\`\`\n"
+        FAILED_CHECK_NAME="Formatting"
+        FAILED_CHECK_DETAILS="$output"
+        FAILED_CHECKS_ARRAY+=("Formatting")
         return 1
     fi
 }
@@ -127,8 +127,9 @@ run_linting_check() {
         return 0
     else
         print_error "Linting check failed"
-        FAILED_CHECKS="${FAILED_CHECKS}• Linting Check (cargo clippy)\n"
-        FAILURE_DETAILS="${FAILURE_DETAILS}\n### Linting Check Failed\n\`\`\`\n${output}\n\`\`\`\n"
+        FAILED_CHECK_NAME="Linting"
+        FAILED_CHECK_DETAILS="$output"
+        FAILED_CHECKS_ARRAY+=("Linting")
         return 1
     fi
 }
@@ -145,40 +146,151 @@ run_testing_check() {
         return 0
     else
         print_error "Testing check failed"
-        FAILED_CHECKS="${FAILED_CHECKS}• Testing Check (cargo test)\n"
-        FAILURE_DETAILS="${FAILURE_DETAILS}\n### Testing Check Failed\n\`\`\`\n${output}\n\`\`\`\n"
+        FAILED_CHECK_NAME="Testing"
+        FAILED_CHECK_DETAILS="$output"
+        FAILED_CHECKS_ARRAY+=("Testing")
         return 1
     fi
 }
 
 ##############################################################################
-# Issue Creation Function
+# Issue Creation Function - Drips Wave Compliant
 ##############################################################################
 
-create_issue_for_failure() {
-    print_warning "Creating GitHub issue for pipeline failure..."
+determine_complexity_label() {
+    local check_type="$1"
     
-    # Prepare the issue body
+    case "$check_type" in
+        "Formatting"|"Linting")
+            echo "Complexity: Trivial"
+            ;;
+        "Testing")
+            echo "Complexity: Medium"
+            ;;
+        *)
+            echo "Complexity: Medium"
+            ;;
+    esac
+}
+
+determine_points() {
+    local check_type="$1"
+    
+    case "$check_type" in
+        "Formatting"|"Linting")
+            echo "100"
+            ;;
+        "Testing")
+            echo "150"
+            ;;
+        *)
+            echo "150"
+            ;;
+    esac
+}
+
+create_issue_for_failure() {
+    print_warning "Creating GitHub issue for pipeline failure (Drips Wave compliant)..."
+    
+    # Use the first failed check for the issue (or the most recent one)
+    local check_name="${FAILED_CHECKS_ARRAY[-1]}"
+    local complexity_label=$(determine_complexity_label "$check_name")
+    local points=$(determine_points "$check_name")
+    
+    # Build the issue title
+    local issue_title="[Automated QA] Resolve $check_name Failure"
+    
+    # Build the Drips Wave compliant issue body using a heredoc
     local issue_body
-    read -r -d '' issue_body << EOF || true
-## Pipeline Failure Summary
+    read -r -d '' issue_body << 'EOF' || true
+## 🤖 Automated Pipeline Failure
 
-The following quality checks failed:
+The automated CI/CD pipeline caught an error during the quality checks phase. This issue requires resolution to maintain codebase health and ensure all contributions meet our quality standards.
 
-${FAILED_CHECKS}
-## Error Details
-${FAILURE_DETAILS}
+### 📋 Error Details
+
+```
+EOF
+    
+    # Append the actual error output
+    issue_body="${issue_body}${FAILED_CHECK_DETAILS}"
+    
+    # Complete the issue body with remaining sections
+    read -r -d '' remaining_body << 'EOF' || true
+```
+
+### 📚 Requirements & Context
+
+Resolving this quality check failure is **required** to maintain:
+- **Code Quality**: Ensures consistent formatting and adherence to Rust best practices
+- **Project Health**: Prevents technical debt and improves maintainability
+- **Contributor Standards**: Maintains the quality bar for all community contributions
+
+### 🚀 Suggested Execution
+
+Follow these steps to resolve this issue:
+
+1. **Fork and Setup**
+   - Fork the repository to your GitHub account
+   - Clone your fork locally: `git clone https://github.com/<your-username>/cloudscout-cli.git`
+   - Add upstream remote: `git remote add upstream https://github.com/douglas/cloudscout-cli.git`
+
+2. **Create a Feature Branch**
+   - Create a branch for your fix: `git checkout -b fix/pipeline-error`
+
+3. **Reproduce and Fix Locally**
+   - Run the failing command to verify the error:
+   ```bash
+   cargo fmt -- --check  # For formatting errors
+   cargo clippy -- -D warnings  # For linting errors
+   cargo test  # For testing errors
+   ```
+   - Apply necessary fixes to pass the quality check
+
+4. **Verify the Fix**
+   - Re-run the failing command to confirm it now passes
+
+5. **Commit and Push**
+   - Stage your changes: `git add .`
+   - Commit with a clear message: `git commit -m "fix: resolve quality check failure"`
+   - Push to your fork: `git push origin fix/pipeline-error`
+
+6. **Submit a Pull Request**
+   - Open a PR against the main repository
+   - **Important:** Your PR description must include `Closes #<issue_id>`
+   - Example: `Closes #42 - This PR resolves the formatting check failure`
+
+### 📍 Labels & Complexity
+
+- **Complexity**: 
+EOF
+    
+    issue_body="${issue_body}${remaining_body}${complexity_label} (${points} points)"
+    
+    # Add final footer
+    read -r -d '' footer << 'EOF' || true
+
+### 💡 Need Help?
+
+- Check the [Rust Documentation](https://www.rust-lang.org/learn)
+- Review our [CONTRIBUTING.md](../CONTRIBUTING.md) guide
+- Join our community discussions
 
 ---
-*This issue was automatically created by the CI/CD pipeline.*
+*🤖 This issue was automatically created by the ship-it.sh CI/CD pipeline.*
 EOF
-
-    # Create the issue
+    
+    issue_body="${issue_body}${footer}"
+    
+    # Create the GitHub issue with proper labels
+    local labels="bug,${complexity_label}"
+    
     if gh issue create \
-        --title "$ISSUE_TITLE" \
-        --label "$ISSUE_LABEL" \
+        --title "$issue_title" \
+        --label "bug" \
+        --label "$complexity_label" \
         --body "$issue_body" > /dev/null 2>&1; then
-        print_success "GitHub issue created successfully"
+        print_success "GitHub issue created successfully (ID tracked in remote)"
     else
         print_error "Failed to create GitHub issue"
         print_warning "You may need to check your GitHub authentication"
@@ -296,7 +408,9 @@ main() {
         print_error "Pipeline failed due to quality check failures"
         echo ""
         echo "Failed checks:"
-        echo -e "$FAILED_CHECKS"
+        for check in "${FAILED_CHECKS_ARRAY[@]}"; do
+            echo "  • $check"
+        done
         echo ""
         
         # Create GitHub issue
