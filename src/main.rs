@@ -1,8 +1,6 @@
 mod aws;
 mod core;
 
-use crate::aws::Ec2SshRule;
-use crate::core::Rule;
 use std::env;
 use std::error::Error;
 
@@ -13,23 +11,45 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     match args.next().as_deref() {
         Some("scan") => {
-            println!("🛡️  CloudScout CLI v0.1.0 - running scan");
+            println!("🛡️  CloudScout CLI v0.1.0 - running scan\n");
 
-            // Initialize AWS SDK and create EC2 client
+            // Load AWS configuration from environment
+            println!("📋 Loading AWS configuration...");
             let config = aws_config::load_defaults(aws_config::BehaviorVersion::latest()).await;
             let client = aws_sdk_ec2::Client::new(&config);
+            println!("✓ AWS configuration loaded\n");
 
-            // Execute rule (pass the client by reference so it's reused)
-            let rule = Ec2SshRule;
-            let result = rule.evaluate(&client).await?;
+            // Scan for exposed SSH ports
+            println!("🔍 Scanning AWS environment for exposed SSH ports...\n");
 
-            if result.passed {
-                println!("Scan passed: {}", result.title);
-            } else {
-                println!("CRITICAL: {} - {}", result.title, result.description);
+            match aws::check_open_ssh(&client).await {
+                Ok(vulnerable_groups) => {
+                    if vulnerable_groups.is_empty() {
+                        println!(
+                            "✅ \x1b[32mSecure: No Security Groups are exposing Port 22 to the public internet.\x1b[0m\n"
+                        );
+                    } else {
+                        println!(
+                            "⚠️  \x1b[33mWARNING: The following Security Groups are exposing SSH (Port 22) to the public internet:\x1b[0m\n"
+                        );
+                        for (index, group) in vulnerable_groups.iter().enumerate() {
+                            println!("  {}. \x1b[31m{}\x1b[0m", index + 1, group);
+                        }
+                        println!();
+                        println!(
+                            "🔒 Recommendation: Restrict SSH access to specific IP addresses or use AWS Systems Manager Session Manager.\n"
+                        );
+                    }
+                    Ok(())
+                }
+                Err(err) => {
+                    eprintln!(
+                        "❌ \x1b[31mError scanning Security Groups:\x1b[0m {}\n",
+                        err
+                    );
+                    Err(err)
+                }
             }
-
-            Ok(())
         }
         _ => {
             println!("🛡️  CloudScout CLI v0.1.0");

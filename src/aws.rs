@@ -82,3 +82,60 @@ impl Rule for Ec2SshRule {
         })
     }
 }
+
+/// Scans EC2 Security Groups for insecure SSH exposure (Port 22 to 0.0.0.0/0).
+///
+/// This function queries all security groups in AWS and checks if any allow
+/// SSH (Port 22) access from the public internet (0.0.0.0/0).
+///
+/// # Arguments
+///
+/// * `client` - An AWS EC2 SDK client
+///
+/// # Returns
+///
+/// A Result containing a Vec<String> of vulnerable security groups in the format
+/// "GroupName (sg-xxxxx)" or just "sg-xxxxx" if name is not available.
+/// Returns an error if the AWS API call fails.
+pub async fn check_open_ssh(
+    client: &Ec2Client,
+) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync>> {
+    let response = client.describe_security_groups().send().await?;
+
+    let mut vulnerable_groups: Vec<String> = Vec::new();
+
+    for security_group in response.security_groups() {
+        let sg_id = security_group.group_id().unwrap_or_default().to_string();
+        let sg_name = security_group.group_name().unwrap_or_default().to_string();
+
+        for permission in security_group.ip_permissions() {
+            let is_tcp = permission
+                .ip_protocol()
+                .map(|protocol| protocol.eq_ignore_ascii_case("tcp"))
+                .unwrap_or(false);
+
+            let allows_port_22 = match (permission.from_port(), permission.to_port()) {
+                (Some(from_port), Some(to_port)) => from_port <= 22 && to_port >= 22,
+                (Some(port), None) | (None, Some(port)) => port == 22,
+                (None, None) => false,
+            };
+
+            let exposes_world_wide = permission
+                .ip_ranges()
+                .iter()
+                .any(|ip_range| ip_range.cidr_ip() == Some("0.0.0.0/0"));
+
+            if is_tcp && allows_port_22 && exposes_world_wide {
+                let label = if !sg_name.is_empty() {
+                    format!("{} ({})", sg_name, sg_id)
+                } else {
+                    sg_id.clone()
+                };
+                vulnerable_groups.push(label);
+                break;
+            }
+        }
+    }
+
+    Ok(vulnerable_groups)
+}
